@@ -1,0 +1,5 @@
+[IP da máquina] projetoinfra.com
+[IP da máquina] alvaro.pt
+[IP da máquina] dashboard.projetoinfra.com
+[IP da máquina] prometheus.projetoinfra.com
+[IP da máquina] grafana.projetoinfra.com
