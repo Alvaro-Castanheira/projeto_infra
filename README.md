@@ -197,14 +197,14 @@ fontes:
 
 [https://docs.docker.com/engine/install/linux-postinstall/](https://docs.docker.com/engine/install/linux-postinstall/)
 
-### **Organizar Diretórios e Estrutura do Projeto**
+### **Organizar Diretorias e Estrutura do Projeto**
 
 Para criar um projeto organizado e de fácil compreensão vai ser criada uma estrutura de diretorias.
 
 Sendo o principal caminho:
 
 ```bash
-/home/alvaro/dev/projetoinfra
+mkdir projetoinfra
 ```
 
 Dentro da diretorias projetoinfra vao ser criados os seguintes diretorias:
@@ -213,16 +213,16 @@ Dentro da diretorias projetoinfra vao ser criados os seguintes diretorias:
 mkdir traefik
 mkdir webserver
 mkdir prometheus
-mkdir grafana
+
 ```
 
 Dentro de cada um destas diretorias seram guardados os ficheiros de configuração da respetiva aplicação.
 
 ## 2-Serviços
 
-Nesta fase vamos entrar no processo de começar a criar as aplicações da infraestrutura através de um ficheiro de docker compose.  Vamos começar pela implementação do traefik como reverse proxy , passando para um webserver nginx e terminar com as ferramentas de monitorização prometheus e grafana.
+Nesta fase vamos entrar no processo de começar a criar as aplicações da infraestrutura através de um ficheiro de docker compose. Vamos começar pela implementação do traefik como reverse proxy , passando para um webserver nginx e terminar com as ferramentas de monitorização prometheus e grafana.
 
-Na descrição de cada serviço vai ser mostrado a parte do Docker compose correspondente a esse serviço e no final é disponibilizado o ficheiro na totalidade.
+Na descrição de cada serviço vai ser mostrado à parte do docker-compose.yml correspondente a esse serviço.
 
 Para dar inicio ao projeto e garantir que todos os containers ficam na mesma rede docker vai ser criada a rede infranetwork:
 
@@ -312,11 +312,6 @@ O neste caso o dashboard do traefik é acedido através do : [dashboard.projetoi
 
 Para o traefik encaminhar os pedidos para o respetivo container , é preciso adicionar labels na criação dos contaiers.
 
-NOTA: Para testar o dashboard  é necessário criar uma entradas no ficheiro de hosts da máquina para resolver os nomes localmente.
-
-```bash
-[ip da máquina] dashboard.projetoinfra.com
-```
 
 fontes:
 
@@ -386,11 +381,9 @@ Dentro desse diretório vamos criar um ficheiro index.html:
 
 ```
 
-Após o index.html criado foi então transferido o meu curriculo em formato pdf para dentro da mesmo diretoria.
+Foi adicionado um ficheiro curriculo_teste.txt dentro da diretoria do html para quando aceder ao servidor web e fazer click no botão o é feito o download do ficheiro.
 
-Ao aceder ao servidor web e fazer click no botão o é feito o download do currículo.
-
-Em simultaneo com a criação deste web server é também criadado um segundo web server com a finalidade de testar se o traefik está realmente a encaminhar o tráfego para os respetivos containers através do nome.
+Em simultaneo com a criação deste web server é também criado um segundo web server com a finalidade de testar se o traefik está realmente a encaminhar o tráfego para os respetivos containers através do nome.
 
 Configuração dos serviços no docker compose:
 
@@ -420,12 +413,6 @@ nginx:
     restart: unless-stopped # Iniciar/reiniciar o serviço a não ser que seja parado
 ```
 
-NOTA: Para testar esta configuração é necessário criar as duas entradas no ficheiro de hosts das máquinas para resolver os nomes localmente.
-
-```bash
-[Ip da máquina]  alvaro.pt
-[Ip da máquina]  projetoinfra.com
-```
 
 ## Prometheus
 
@@ -489,7 +476,7 @@ Apesar dos exporters pertencerem à estrutura do Prometheus são criados em cont
     restart: unless-stopped # Iniciar/reiniciar o serviço a não ser que seja parado
 ```
 
-Após configurado o docker compose crimamos então o prometheus.yml na diretoria  do prometheus dentro do projetoinfra:
+Após configurado o docker compose crimamos então o prometheus.yml na diretoria do prometheus dentro do projetoinfra:
 
 ```yaml
 global:
@@ -520,11 +507,6 @@ scrape_configs:
       - targets: ['cadvisor:8080']  
 ```
 
-NOTA: Para aceder à web interface do Prometheus é necessário criar a entrada no ficheiro de hosts das máquinas para resolver os nomes localmente.
-
-```bash
-[Ip da máquina]  prometheus.projetoinfra.com
-```
 
 Fontes:
 
@@ -544,9 +526,7 @@ Fontes:
 
 Após configurar o Prometheus para recolher as métricas a ferramenta utilizada para apresentar os dados é o Grafana devido a ter uma integração simples com o Prometheus.
 
-Antes de iniciar o serviço do Grafana é necessário criar uma diretoria “projetoinfra/grafana/grafana_data” para montar os dados do grafana persistentemente.
-
-O serviço do Grafana não requer ficheiros de confgiuração , apenas o serviço no ficheiro do docker compose:
+O serviço do Grafana não requer ficheiros de configuração , apenas o serviço no ficheiro do docker compose:
 
 ```yaml
 # Visualização das metricas
@@ -564,11 +544,6 @@ O serviço do Grafana não requer ficheiros de confgiuração , apenas o serviç
     restart: unless-stopped # Iniciar/reiniciar o serviço a não ser que seja parado
 ```
 
-NOTA: Para aceder ao Grafana é necessário criar a entrada no ficheiro de hosts das máquinas para resolver os nomes localmente.
-
-```bash
-[Ip da máquina]  grafana.projetoinfra.com
-```
 
 Para aceder ao dashboard do grafana é através do link:
 
@@ -612,133 +587,5 @@ Fontes:
 
 [https://grafana.com/grafana/dashboards/1860-node-exporter-full/](https://grafana.com/grafana/dashboards/1860-node-exporter-full/)
 
-Docker-compose.yml completo:
 
-```yaml
-services: # Serviços que vão iniciar no projetoinfra.
-  traefik:
-    image: traefik:v3.4
-    container_name: traefik
-    ports:
-      - "80:80" 
-      - "443:443"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock # permite o acesso do traefik ao sockets do docker
-      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro # Passagem do ficheiro de configuração
-    restart: unless-stopped # Iniciar/reiniciar o serviço a não ser que seja parado
-    labels:
-      - "traefik.enable=true" # ativa o serviço do traefik para encaminhar requisições para os containers
-      - "traefik.http.routers.dashboard.entrypoints=web" # Indica que o tráfego vem da interface "web" ( porto 80 )
-      - "traefik.http.routers.dashboard.rule=Host(`dashboard.projetoinfra.com`)" # label que vai resolver o nome
-      - "traefik.http.routers.dashboard.middlewares=dashboard-auth" # Indica o middleware que vai tratar da autenticação
-      - "traefik.http.middlewares.dashboard-auth.basicauth.users=admin:$$apr1$$2McayjLp$$oU3szFX6y0LaK8AExdB8b0" # User para autenticação
-      - "traefik.http.services.traefik-traefik.loadbalancer.server.port=8080" # Configuração do serviço para enviar o tráfego da API
-      - "traefik.http.routers.dashboard.service=api@internal" # Configuração para ativar o dashboard
-    networks: 
-      - infranetwork # configura o container na rede
-
-      # Web severs
-  nginx:
-    container_name: nginx-server
-    image: nginx:1.29.0-alpine
-    networks:
-      - infranetwork # configura o container na rede
-    volumes:
-      - ./webserver/html:/usr/share/nginx/html # montar o diretório com a página e currículo dentro do container
-    labels: # labels para permitir o traefik encaminhar as requisições
-      - traefik.enable=true # ativa o serviço do traefik para encaminhar requisições para os containers
-      - traefik.http.routers.nginx-http.entrypoints=web
-      - traefik.http.routers.nginx-http.rule=Host("alvaro.pt") # label que vai resolver o nome
-    restart: unless-stopped # Iniciar/reiniciar o serviço a não ser que seja parado
-
-  nginx-teste: # serviço nginx default criado para testar se o traefik está a resolver as requisições pelo domínio
-    container_name: nginx-teste2 
-    image: nginx:latest
-    networks:
-      - infranetwork # configura o container na rede
-    labels: # labels para permitir o traefik encaminhar as requisições
-      - traefik.enable=true # ativa o serviço do traefik para encaminhar requisições para os containers
-      - traefik.http.routers.nginx-http2.rule=Host("projetoinfra.com") # label que vai resolver o nome
-      - traefik.http.routers.nginx-http2.entrypoints=web 
-    restart: unless-stopped # Iniciar/reiniciar o serviço a não ser que seja parado
-  
-  # Monitorização
-  prometheus:
-    container_name: prometheus
-    image: prom/prometheus:v3.5.0
-    volumes:
-      - "./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml" # montar o ficheiro de configuração 
-      - prometheus_data:/prometheus # montar um volume persistente para guardar os dados declarado no final do ficheiro
-    labels: # labels para permitir o traefik encaminhar as requisições
-     - traefik.enable=true # ativa o serviço do traefik para encaminhar requisições para os containers
-     - traefik.http.routers.prometheus.entrypoints=web
-     - traefik.http.routers.prometheus.rule=Host("prometheus.projetoinfra.com") # label que vai resolver o nome
-    networks:
-      - infranetwork
-    restart: unless-stopped # Iniciar/reiniciar o serviço a não ser que seja parado
-
-   # Exporters do prometheus 
-  node_exporter:
-    container_name: node_exporter
-    image: quay.io/prometheus/node-exporter:v1.9.1
-    command: "--path.rootfs=/host"
-    pid: host
-    volumes:
-      - /:/host:ro,rslave # montado o volume do "/" dentro do container em modo read-only para que o container possa recolher as métricas da máquina
-    networks:
-      - infranetwork
-    restart: unless-stopped # Iniciar/reiniciar o serviço a não ser que seja parado
-
-  cadvisor:
-    container_name: cadvisor
-    image: gcr.io/cadvisor/cadvisor:v0.52.1
-    volumes:
-      - /:/rootfs:ro
-      - /run:/run:ro
-      - /sys:/sys:ro
-      - /var/lib/docker/:/var/lib/docker:ro
-      - /dev/disk/:/dev/disk:ro
-    devices:
-      - /dev/kmsg
-    privileged: true
-    networks:
-      - infranetwork
-    restart: unless-stopped # Iniciar/reiniciar o serviço a não ser que seja parado
-
-# Visualização das metricas
-  grafana:
-    image: grafana/grafana:12.0.2-security-01-ubuntu
-    container_name: grafana
-    labels: # labels para permitir o traefik encaminhar as requisições
-     - traefik.enable=true # ativa o serviço do traefik para encaminhar requisições para os containers
-     - traefik.http.routers.grafana.entrypoints=web
-     - traefik.http.routers.grafana.rule=Host("grafana.projetoinfra.com") # label que vai resolver o nome
-    volumes:
-      - grafana_data:/var/lib/grafana # montar um volume persistente para guardar os dados declarado no final do ficheiro
-    networks:
-      - infranetwork
-    restart: unless-stopped # Iniciar/reiniciar o serviço a não ser que seja parado
-
-    
-# Declaração da rede
-networks: 
-  infranetwork:
-    external: true
-
-# Declaração de volumes (geridos pelo docker)
-volumes:
-  grafana_data: 
-  prometheus_data:
-```
-
-# Conclusão
-
-A criação e execução deste projeto trouxe um amplo conhecimento sobre o sistema Linux. Começando pelos ****fundamentos do sistema operativo Linux e todos os passos para a criação e configuração de uma máquina virtual Ubuntu. A partir daí, aprofundou-se na orquestração e interligação de serviços complexos, como o Traefik, Nginx, Prometheus e Grafana. Esta experiência exigiu pensar em toda a estrutura para garantir que cada componente cumpre a sua função e se comunica eficazmente com os restantes.
-
-A utilização do Traefik, em particular, foi crucial para a ****gestão de tráfego. Aprendi a configurar este *reverse proxy* para autodescobrir serviços através de *labels* do Docker, a definir regras de roteamento baseadas em nomes de *host* e a implementar medidas de segurança como a autenticação básica para proteger o dashboard*.*
-
-No domínio da monitorização de infraestruturas, o projeto demonstrou como recolher métricas tanto a nível do sistema como dos contentores, utilizando a ferramenta Prometheus. Posteriormente, foi configurado o Grafana para visualizar esses dados, uma etapa fundamental para o diagnóstico de problemas e a otimização de recursos.
-
-A persistência de dados e a gestão de volumes foram igualmente destacadas através da utilização de volumes nomeados para o Prometheus e Grafana. Isto assegurou que os dados não se perdessem mesmo após a recriação dos contentores, e o mapeamento de volumes para ficheiros de configuração e conteúdo estático permitiu manter a flexibilidade e a facilidade de gestão. O que permitiu explorar também as permissões do sistema de ficheiros do Linux.
-
-Por fim, a gestão de redes no Docker, com a criação e definição da “infranetwork”, mostrou como isolar e organizar serviços numa rede dedicada, uma prática essencial para melhorar a segurança e a organização do ambiente.
+NOTA: Para efetuar os testar o acesso aos serviços é necessários resolver os nomes a nível local na máquina , adicionadas as entradas indicadas no ficheiro "hosts_adicionar.txt".
