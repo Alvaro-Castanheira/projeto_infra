@@ -1,0 +1,15 @@
+global:
+  checkNewVersion: false # não permite atualizações
+  sendAnonymousUsage: false # não permite enviar dados anonimamente
+log:
+  level: DEBUG # aumenta a verbose dos logs
+api:
+  dashboard: true # ativa o frontend
+entryPoints: # os entryPoints vão definir os portos e os protocolos no qual o traefik vai receber pacotes
+  web:
+    address: :80
+  websecure:
+    address: :443
+providers:
+  docker: # vai permitir examinar os containers do docker
+    endpoint: "unix:///var/run/docker.sock"

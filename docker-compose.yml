@@ -1,0 +1,114 @@
+services: # Serviços que vão iniciar no projetoinfra.
+  traefik:
+    image: traefik:v3.4
+    container_name: traefik
+    ports:
+      - "80:80" 
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock # permite o acesso do traefik ao sockets do docker
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro # Passagem do ficheiro de configuração
+    restart: unless-stopped # Iniciar/reiniciar o serviço a não ser que seja parado
+    labels:
+      - "traefik.enable=true" # ativa o serviço do traefik para encaminhar requisições para os containers
+      - "traefik.http.routers.dashboard.entrypoints=web" # Indica que o tráfego vem da interface "web" ( porto 80 )
+      - "traefik.http.routers.dashboard.rule=Host(`dashboard.projetoinfra.com`)" # label que vai resolver o nome
+      - "traefik.http.routers.dashboard.middlewares=dashboard-auth" # Indica o middleware que vai tratar da autenticação
+      - "traefik.http.middlewares.dashboard-auth.basicauth.users=admin:$$apr1$$2McayjLp$$oU3szFX6y0LaK8AExdB8b0" # User para autenticação
+      - "traefik.http.services.traefik-traefik.loadbalancer.server.port=8080" # Configuração do serviço para enviar o tráfego da API
+      - "traefik.http.routers.dashboard.service=api@internal" # Configuração para ativar o dashboard
+    networks: 
+      - infranetwork # configura o container na rede
+
+      # Web severs
+  nginx:
+    container_name: nginx-server
+    image: nginx:1.29.0-alpine
+    networks:
+      - infranetwork # configura o container na rede
+    volumes:
+      - ./webserver/html:/usr/share/nginx/html # montar o diretório com a página e currículo dentro do container
+    labels: # labels para permitir o traefik encaminhar as requisições
+      - traefik.enable=true # ativa o serviço do traefik para encaminhar requisições para os containers
+      - traefik.http.routers.nginx-http.entrypoints=web
+      - traefik.http.routers.nginx-http.rule=Host("alvaro.pt") # label que vai resolver o nome
+    restart: unless-stopped # Iniciar/reiniciar o serviço a não ser que seja parado
+
+  nginx-teste: # serviço nginx default criado para testar se o traefik está a resolver as requisições pelo domínio
+    container_name: nginx-teste2 
+    image: nginx:latest
+    networks:
+      - infranetwork # configura o container na rede
+    labels: # labels para permitir o traefik encaminhar as requisições
+      - traefik.enable=true # ativa o serviço do traefik para encaminhar requisições para os containers
+      - traefik.http.routers.nginx-http2.rule=Host("projetoinfra.com") # label que vai resolver o nome
+      - traefik.http.routers.nginx-http2.entrypoints=web 
+    restart: unless-stopped # Iniciar/reiniciar o serviço a não ser que seja parado
+  
+  # Monitorização
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus:v3.5.0
+    volumes:
+      - "./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml" # montar o ficheiro de configuração 
+      - prometheus_data:/prometheus # montar um volume persistente para guardar os dados declarado no final do ficheiro
+    labels: # labels para permitir o traefik encaminhar as requisições
+     - traefik.enable=true # ativa o serviço do traefik para encaminhar requisições para os containers
+     - traefik.http.routers.prometheus.entrypoints=web
+     - traefik.http.routers.prometheus.rule=Host("prometheus.projetoinfra.com") # label que vai resolver o nome
+    networks:
+      - infranetwork
+    restart: unless-stopped # Iniciar/reiniciar o serviço a não ser que seja parado
+
+   # Exporters do prometheus 
+  node_exporter:
+    container_name: node_exporter
+    image: quay.io/prometheus/node-exporter:v1.9.1
+    command: "--path.rootfs=/host"
+    pid: host
+    volumes:
+      - /:/host:ro,rslave # montado o volume do "/" dentro do container em modo read-only para que o container possa recolher as métricas da máquina
+    networks:
+      - infranetwork
+    restart: unless-stopped # Iniciar/reiniciar o serviço a não ser que seja parado
+
+  cadvisor:
+    container_name: cadvisor
+    image: gcr.io/cadvisor/cadvisor:v0.52.1
+    volumes:
+      - /:/rootfs:ro
+      - /run:/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    devices:
+      - /dev/kmsg
+    privileged: true
+    networks:
+      - infranetwork
+    restart: unless-stopped # Iniciar/reiniciar o serviço a não ser que seja parado
+
+# Visualização das metricas
+  grafana:
+    image: grafana/grafana:12.0.2-security-01-ubuntu
+    container_name: grafana
+    labels: # labels para permitir o traefik encaminhar as requisições
+     - traefik.enable=true # ativa o serviço do traefik para encaminhar requisições para os containers
+     - traefik.http.routers.grafana.entrypoints=web
+     - traefik.http.routers.grafana.rule=Host("grafana.projetoinfra.com") # label que vai resolver o nome
+    volumes:
+      - grafana_data:/var/lib/grafana # montar um volume persistente para guardar os dados declarado no final do ficheiro
+    networks:
+      - infranetwork
+    restart: unless-stopped # Iniciar/reiniciar o serviço a não ser que seja parado
+
+    
+# Declaração da rede
+networks: 
+  infranetwork:
+    external: true
+
+# Declaração de volumes (geridos pelo docker)
+volumes:
+  grafana_data: 
+  prometheus_data:
